@@ -16,11 +16,12 @@ public class Player extends entity{
     private BufferedImage[][] animations;
     private int animaTic;
     private int animaSpeed = 15;
-    private int animaSpeedIdle;
+    private int animaSpeedIdle = 15;
     private int animaSpeedRunning = 16;
     private int animaIndex;
     private int player_action = PlayerConstants.R_IDLE;
     private int[][] LVLData;
+    private int lastDirection;
 
     private boolean isMoving = false;
     private boolean isRunning = false;
@@ -42,7 +43,7 @@ public class Player extends entity{
     public Player(float x, float y, int width, int height) {
         super(x, y, width, height);
         loadAnimations();
-        hitboxInitialize(x, y, (int)(8 * Game.SCALE), (int)(22 * Game.SCALE));
+        hitboxInitialize(x, y, (int)(8 * Game.SCALE), (int)(24 * Game.SCALE));
     }
 
     public void update() {
@@ -55,8 +56,8 @@ public class Player extends entity{
         g.drawImage(animations[player_action][animaIndex], 
                     (int)(hitboxRectangle.x - player_hitbox_x) - lvlxview, 
                     (int)(hitboxRectangle.y - player_hitbox_y) - lvlyview, 
-                    (int)(25 * Game.SCALE), 
-                    (int)(25 * Game.SCALE), 
+                    (int)(25 * Game.SCALE), //control the player's width
+                    (int)(35 * Game.SCALE), //control the player's height
                     null);
         //hitboxDraw(g); //Here is the hitbox of the player
     }
@@ -64,27 +65,24 @@ public class Player extends entity{
     private void setAnimation() {
         int animationStart = player_action;
 
+        if(isMoving == true){
+            if (down) {
+                player_action = PlayerConstants.D_MOVE;
+                lastDirection = PlayerConstants.D_IDLE;
+            } else if (up) {
+                player_action = PlayerConstants.U_MOVE;
+                lastDirection = PlayerConstants.U_IDLE;
+            } else if (left) {
+                player_action = PlayerConstants.L_MOVE;
+                lastDirection = PlayerConstants.L_IDLE;
+            } else if (right) {
+                player_action = PlayerConstants.R_MOVE;
+                lastDirection = PlayerConstants.R_IDLE;
+            }
+        }else{
+            player_action = lastDirection;
+        }
         
-        if(!isMoving && down){
-            player_action = PlayerConstants.D_IDLE;
-        }else if(!isMoving && up){
-            player_action = PlayerConstants.U_IDLE;
-        }else if(!isMoving && left){
-            player_action = PlayerConstants.L_IDLE;
-        }else if(!isMoving && right){
-            player_action = PlayerConstants.R_IDLE;
-        }
-
-        if(isMoving && down){
-            player_action = PlayerConstants.D_MOVE;
-        }else if(isMoving && up){
-            player_action = PlayerConstants.U_MOVE;
-        }else if(isMoving && left){
-            player_action = PlayerConstants.L_MOVE;
-        }else if(isMoving && right){
-            player_action = PlayerConstants.R_MOVE;
-        }
-
         if(animationStart != player_action){
             resetAnimaTic();
         }
@@ -95,22 +93,10 @@ public class Player extends entity{
         animaTic++;
         randomAnimationTimer++;
 
-        int currentAnimationSpeed = animaSpeed;
+        int currentAnimationSpeed;
 
-        if(isMoving){
-            switch(player_action){
-                case PlayerConstants.D_MOVE:
-                    currentAnimationSpeed = animaSpeedRunning;
-                    break;
-                case PlayerConstants.L_MOVE:
-                    currentAnimationSpeed = animaSpeedRunning;
-                    break;
-                case PlayerConstants.R_MOVE:
-                    currentAnimationSpeed = animaSpeedRunning;
-                    break;
-                case PlayerConstants.U_MOVE:
-                    currentAnimationSpeed = animaSpeedRunning;
-            }
+        if(isMoving == true){
+            currentAnimationSpeed = animaSpeedRunning;
             
             if(animaTic >= currentAnimationSpeed){
                 animaTic = 0;
@@ -119,45 +105,31 @@ public class Player extends entity{
                     animaIndex = 0;
                 }
             }
-        }else{            
-            switch(player_action){
-                case PlayerConstants.D_IDLE:
-                    currentAnimationSpeed = animaSpeedIdle;
-                    break;
-                case PlayerConstants.L_IDLE:
-                    currentAnimationSpeed = animaSpeedIdle;
-                    break;
-                case PlayerConstants.R_IDLE:
-                    currentAnimationSpeed = animaSpeedIdle;
-                    break;
-                case PlayerConstants.U_IDLE:
-                    currentAnimationSpeed = animaSpeedIdle;
-                    break;
-                default:
-                    break;
+
+        }else{
+            currentAnimationSpeed = animaSpeedIdle;
+
+            if(randomAnimationTimer >= randomAnimationInterval){
+                playAnimation = true;
+                randomAnimationTimer = 0;
+                randomAnimationInterval = random.nextInt(1000) + 50; 
+                //new random interval between 50 and 1050 ticks
             }
-        }
 
-        //Random animation timer.
-        if(!playAnimation && randomAnimationTimer >= randomAnimationInterval){
-            playAnimation = true;
-            randomAnimationTimer = 0;
-            randomAnimationInterval = random.nextInt(1000) + 50; 
-            //new random interval between 50 and 1050 ticks
-
-        }
-
-        if(playAnimation){
-            if(animaTic >= currentAnimationSpeed){
-                animaTic = 0;
-                animaIndex++;
-                if(animaIndex >= PlayerConstants.RecieveSpriteAmount(player_action)){
-                    animaIndex = 0;
-                    playAnimation = false;
+            if(playAnimation){
+                animaTic++;
+                if(animaTic >= currentAnimationSpeed){
+                    animaTic = 0;
+                    animaIndex++;
+                    if(animaIndex >= PlayerConstants.RecieveSpriteAmount(player_action)){
+                        animaIndex = 0;
+                        playAnimation = false;
+                    }
                 }
-            }
-        }
-        
+            }else{
+                animaIndex = 0;
+            }   
+        }        
     }
 
     private void resetAnimaTic(){
@@ -174,7 +146,8 @@ public class Player extends entity{
         if(left){
             xSpeed -= player_speed;
             isMoving = true;
-        }else if(right){
+        }
+        if(right){
             xSpeed += player_speed;
             isMoving = true;
         }
@@ -182,10 +155,15 @@ public class Player extends entity{
         if(up){
             ySpeed -= player_speed;
             isMoving = true;
-        }else if(down){
+        }
+        if(down){
             ySpeed += player_speed;
             isMoving = true;
         }
+
+        //debugging
+        //System.out.println("Moving Left: " + left + ", Right: " + right + ", Up: " + up + ", Down: " + down + ", isMoving: " + isMoving);
+
 
         //Check if player can move here and Update the Player's Position
         if(player_Can_Move_Here(hitboxRectangle.x, hitboxRectangle.y, hitboxRectangle.width, hitboxRectangle.height, LVLData)){
